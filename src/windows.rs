@@ -13,7 +13,7 @@ mod sys {
     pub type LPCVOID = *const c_void;
     pub type LSTATUS = c_long;
 
-    #[link(name = "advapi32.dll")]
+    #[link(name = "advapi32")]
     extern "system" {
         pub fn RegSetKeyValueA(
             key: HKEY,
