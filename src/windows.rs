@@ -1,4 +1,8 @@
-use std::io;
+use std::{ffi::c_void, io};
+
+use winapi::um::winreg;
+
+use crate::Username;
 
 mod sys {
     use std::ffi::{c_char, c_long, c_ulong, c_void};
@@ -42,6 +46,28 @@ pub fn set_auto_login_user(username: &[u8]) -> io::Result<()> {
     };
     if result == sys::ERROR_SUCCESS as sys::LSTATUS {
         Ok(())
+    } else {
+        Err(io::Error::from_raw_os_error(result))
+    }
+}
+/// Gets the user that the Steam client will attempt to automatically log-in to, if exists.
+pub fn get_auto_login_user(username: &mut [u8; Username::MAX_LEN + 1]) -> io::Result<usize> {
+    const SUBKEY: sys::LPCSTR = b"SOFTWARE\\Valve\\Steam\0" as *const u8 as *const i8;
+    const VALUE_NAME: sys::LPCSTR = b"AutoLoginUser\0" as *const u8 as *const i8;
+    let mut size = username.len() as sys::DWORD;
+    let result = unsafe {
+        winreg::RegGetValueA(
+            winreg::HKEY_CURRENT_USER,
+            SUBKEY,
+            VALUE_NAME,
+            winreg::RRF_RT_REG_SZ,
+            std::ptr::null_mut(),
+            username.as_ptr() as *mut c_void,
+            &mut size,
+        )
+    };
+    if result == sys::ERROR_SUCCESS as sys::LSTATUS {
+        Ok(size as usize)
     } else {
         Err(io::Error::from_raw_os_error(result))
     }
