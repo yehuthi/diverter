@@ -1,0 +1,6 @@
+[package]
+name = "diverter"
+description = "quickly switch between Steam accounts on Windows."
+version = "0.1.0"
+authors = ["Yehuthi <yehuthith@gmail.com>"]
+edition = "2021"
