@@ -1,3 +1,5 @@
+//! Switch Steam accounts.
+
 #[cfg(not(target_os = "windows"))]
 compile_error!("Only Windows is supported.");
 
@@ -11,6 +13,13 @@ use std::{
 
 pub use windows::set_auto_login_user;
 
+/// A Steam username.
+///
+/// # Validation
+/// A username must:
+/// - be at least [`Username::MIN_LEN`] (3) characters.
+/// - be at most [`Username::MAX_LEN`] (32) characters.
+/// - only consist of characters matching the class `[a-zA-Z0-9_]`.
 #[derive(Clone, Copy)]
 pub struct Username {
     data: [MaybeUninit<u8>; Username::MAX_LEN + /* null terminator */ 1],
@@ -37,14 +46,18 @@ impl Display for Username {
 }
 
 impl Username {
+    /// The maximum length of a [`Username`].
     pub const MAX_LEN: usize = 32;
+    /// The minimum length of a [`Username`].
     pub const MIN_LEN: usize = 3;
 
+    /// Gets a slice of the username as ASCII bytes with a NUL character terminator (see also [`Username::as_bytes`]).
     #[inline(always)]
     pub const fn as_bytes_with_nul(&self) -> &[u8] {
         unsafe { std::slice::from_raw_parts(self.data.as_ptr() as *const u8, self.len) }
     }
 
+    /// Gets a slice of the username as ASCII bytes (see also [`Username::as_bytes_with_nul`]).
     #[inline(always)]
     pub const fn as_bytes(&self) -> &[u8] {
         unsafe { std::slice::from_raw_parts(self.data.as_ptr() as *const u8, self.len - 1) }
@@ -95,12 +108,18 @@ impl FromStr for Username {
     }
 }
 
+/// A [`Username`] validation error.
+///
+/// See [`Username`]'s validation doc section for specifics.
 #[derive(Debug, thiserror::Error)]
 pub enum UsernameError {
+    /// The username is too short.
     #[error("the username is too short")]
     TooShort,
+    /// The username is too long.
     #[error("the username is too long")]
     TooLong,
+    /// The username is contains illegal characters.
     #[error("the username contains illegal characters, it must be ASCII")]
     IllegalCharacters,
 }

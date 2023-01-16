@@ -26,6 +26,7 @@ mod sys {
     }
 }
 
+/// Sets user of the given NUL-terminated username to be the user that the Steam client will attempt to automatically log-in to.
 pub fn set_auto_login_user(username: &[u8]) -> io::Result<()> {
     const SUBKEY: sys::LPCSTR = b"SOFTWARE\\Valve\\Steam\0" as *const u8 as *const i8;
     const VALUE_NAME: sys::LPCSTR = b"AutoLoginUser\0" as *const u8 as *const i8;
