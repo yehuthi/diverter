@@ -6,7 +6,7 @@ compile_error!("Only Windows is supported.");
 mod windows;
 
 use std::{
-    fmt::{Debug, Display},
+    fmt::{self, Debug, Display, Formatter},
     mem::MaybeUninit,
     str::FromStr,
 };
@@ -27,7 +27,7 @@ pub struct Username {
 }
 
 impl Debug for Username {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         f.debug_struct("Username")
             .field(
                 "data",
@@ -40,7 +40,7 @@ impl Debug for Username {
 
 impl Display for Username {
     #[inline(always)]
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         Display::fmt(unsafe { std::str::from_utf8_unchecked(self.as_bytes()) }, f)
     }
 }
