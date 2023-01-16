@@ -4,3 +4,7 @@ description = "quickly switch between Steam accounts on Windows."
 version = "0.1.0"
 authors = ["Yehuthi <yehuthith@gmail.com>"]
 edition = "2021"
+
+[dependencies]
+clap = { version = "4.1.1", features = ["derive"] }
+thiserror = "1.0.38"

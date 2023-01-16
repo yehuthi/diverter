@@ -1,4 +1,4 @@
-use std::{ffi::CString, io};
+use std::io;
 
 mod sys {
     use std::ffi::{c_char, c_long, c_ulong, c_void};
@@ -26,10 +26,9 @@ mod sys {
     }
 }
 
-pub fn set_auto_login_user(username: &CString) -> io::Result<()> {
+pub fn set_auto_login_user(username: &[u8]) -> io::Result<()> {
     const SUBKEY: sys::LPCSTR = b"SOFTWARE\\Valve\\Steam\0" as *const u8 as *const i8;
     const VALUE_NAME: sys::LPCSTR = b"AutoLoginUser\0" as *const u8 as *const i8;
-    let username = username.to_bytes_with_nul();
     let result = unsafe {
         sys::RegSetKeyValueA(
             sys::HKEY_CURRENT_USER,
