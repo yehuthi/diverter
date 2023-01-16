@@ -27,6 +27,7 @@ pub struct Username {
 }
 
 impl Debug for Username {
+    #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         f.debug_struct("Username")
             .field(
@@ -103,6 +104,7 @@ impl<'a> TryFrom<&'a str> for Username {
 impl FromStr for Username {
     type Err = UsernameError;
 
+    #[inline(always)]
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Username::try_from(s)
     }
