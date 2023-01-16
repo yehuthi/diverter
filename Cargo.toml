@@ -3,6 +3,10 @@ name = "diverter"
 description = "quickly switch between Steam accounts on Windows."
 version = "0.1.0"
 authors = ["Yehuthi <yehuthith@gmail.com>"]
+repository = "https://github.com/yehuthi/diverter"
+license = "MIT OR Apache-2.0"
+keywords = ["steam", "account", "manager", "switcher", "gaming"]
+categories = ["command-line-utilities"]
 edition = "2021"
 
 [dependencies]
