@@ -27,6 +27,7 @@ pub fn set_auto_login_user(username: &[u8]) -> io::Result<()> {
         Err(io::Error::from_raw_os_error(result))
     }
 }
+
 /// Gets the user that the Steam client will attempt to automatically log-in to, if exists.
 pub fn get_auto_login_user(username: &mut [u8; Username::MAX_LEN + 1]) -> io::Result<usize> {
     let mut size = username.len() as _;
