@@ -20,7 +20,7 @@ fn main() {
         let mut buffer = [0u8; 33];
         match diverter::get_auto_login_user(&mut buffer) {
             Ok(len) => {
-                eprintln!("{}", std::str::from_utf8(&buffer[..len]).expect("the retrieved string of the account from the registry is not valid ASCII/UTF-8."));
+                println!("{}", std::str::from_utf8(&buffer[..len]).expect("the retrieved string of the account from the registry is not valid ASCII/UTF-8."));
             }
             Err(e) => {
                 eprintln!("failed to get the current username: {e}");
