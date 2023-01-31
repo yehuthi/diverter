@@ -67,8 +67,6 @@ result_t steam_shutdown(steam_t const *steam) {
     DWORD wait_result = WaitForSingleObject(process.hProcess, INFINITE);
     CloseHandle(process.hThread);
     CloseHandle(process.hProcess);
-    DWORD pid = 0;
-    steam_is_running_xxx(&pid);
     return wait_result == WAIT_FAILED
         ? (result_t){WAIT_STEAM_EXIT, GetLastError()}
         : SUCCESS;
