@@ -12,10 +12,15 @@ pub struct Cli {
     /// Gets the current account.
     #[arg(short, long)]
     get: bool,
+    #[arg(short, long, requires = "switch")]
+    /// Restarts Steam with the switched user.
+    restart: bool,
 }
 
 fn main() {
     let cli = Cli::parse();
+    let steam = diverter::Steam::new().unwrap();
+
     if cli.get {
         let mut buffer = [0u8; 33];
         match diverter::get_auto_login_user(&mut buffer) {
@@ -28,10 +33,18 @@ fn main() {
             }
         }
     }
+
     if let Some(new_username) = cli.switch {
         if let Err(e) = diverter::set_auto_login_user(new_username.as_bytes_with_nul()) {
             eprintln!("failed to set the new username: {e}");
             process::exit(1)
         }
+    }
+
+    if true || cli.restart {
+        steam.shutdown().unwrap();
+        // XXX: wait a bit for child processes to die
+        std::thread::sleep(std::time::Duration::from_secs(5));
+        steam.launch().unwrap();
     }
 }
