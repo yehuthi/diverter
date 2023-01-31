@@ -55,6 +55,7 @@ dependencies = [
 name = "diverter"
 version = "1.1.0"
 dependencies = [
+ "cc",
  "clap",
  "thiserror",
  "winapi",
