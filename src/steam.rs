@@ -27,8 +27,11 @@ impl Debug for Steam {
 enum CPhase {
     Ok = 0,
     ReadSteamRegistry,
+    CanonicalizeSteamPath,
     LaunchSteam,
     WaitSteamExit,
+    EnumProcesses,
+    KillSteam,
 }
 
 #[repr(C)]
@@ -49,6 +52,7 @@ extern "C" {
     fn steam_init(steam: *mut Steam) -> CResult;
     fn steam_shutdown(steam: *const Steam) -> CResult;
     fn steam_launch(steam: *const Steam) -> CResult;
+    fn steam_kill(steam: *const Steam, killed: *mut u8) -> CResult;
 }
 
 #[derive(Debug)]
@@ -87,6 +91,15 @@ impl Steam {
             Ok(())
         } else {
             Err(result.into())
+        }
+    }
+
+    pub fn kill(&self) -> io::Result<bool> {
+        let mut killed = 0u8;
+        let result = unsafe { steam_kill(self, &mut killed) };
+        match result.phase {
+            CPhase::Ok => Ok(killed != 0),
+            _ => Err(io::Error::from_raw_os_error(result.win_code as _)),
         }
     }
 }

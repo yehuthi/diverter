@@ -1,12 +1,18 @@
 #include <stdint.h>
 #include <Windows.h>
 #include <Psapi.h>
+#include <Shlwapi.h>
+#include <ctype.h>
 
+// note: on change, sync the Phase enum in steam.rs
 typedef enum {
     OK = 0,
     READ_STEAM_REGISTRY,
+    CANONICALIZE_STEAM_PATH,
     LAUNCH_STEAM,
-    WAIT_STEAM_EXIT
+    WAIT_STEAM_EXIT,
+    ENUM_PROCESSES,
+    KILL_STEAM
 } phase_t;
 
 typedef struct {
@@ -17,25 +23,28 @@ typedef struct {
 #define SUCCESS ((result_t){OK,ERROR_SUCCESS})
 
 typedef struct {
+    /// path length excluding NUL terminator.
     wchar_t len;
+    /// lowercase path to the steam executable.
     wchar_t path[MAX_PATH];
 } steam_t;
 
 result_t steam_init(steam_t *steam) {
-    DWORD len = sizeof(steam->path);
-    const LSTATUS result = RegGetValueW(
+    DWORD size = sizeof(steam->path);
+    const LSTATUS status = RegGetValueW(
         HKEY_CURRENT_USER,
         L"SOFTWARE\\Valve\\Steam",
         L"SteamExe",
         RRF_RT_REG_SZ,
         NULL,
         &steam->path,
-        &len
+        &size
     );
-    steam->len = len / sizeof(wchar_t);
-    return result == ERROR_SUCCESS
-        ? SUCCESS
-        : (result_t){READ_STEAM_REGISTRY, result};
+    if (status != ERROR_SUCCESS) return (result_t){READ_STEAM_REGISTRY, status};
+    steam->len = size / sizeof(wchar_t) - /* NUL */ 1;
+    for (size_t i = 0; i < steam->len; i++)
+        steam->path[i] = steam->path[i] == '/' ? '\\' : towlower(steam->path[i]);
+    return SUCCESS;
 }
 
 static result_t steam_launch_args(steam_t const *steam, wchar_t *args, PROCESS_INFORMATION *process) {
@@ -78,4 +87,49 @@ result_t steam_launch(steam_t const *steam) {
     CloseHandle(process.hThread);
     CloseHandle(process.hProcess);
     return result;
+}
+
+/// @return dir length, excluding NUL
+static size_t steam_dir_lowercase(steam_t const *steam, wchar_t out[MAX_PATH]) {
+    const size_t dir_len = steam->len - (sizeof("steam.exe") - /* NUL */ 1);
+    memcpy(out, steam->path, dir_len * sizeof(wchar_t));
+    out[dir_len] = L'\0';
+    return dir_len;
+}
+
+static uint8_t steam_path_is_ancestor(wchar_t* path, size_t path_len, wchar_t* dir_lowercase, size_t dir_len) {
+    if (path_len < dir_len) return 0;
+    for (size_t i = dir_len - 1; i != ((size_t)-1); i--)
+        if (towlower(path[i]) != dir_lowercase[i]) return 0;
+    return 1;
+}
+
+result_t steam_kill(steam_t const *steam, uint8_t killed) {
+    DWORD pids[5000];
+    DWORD bytes_len = 0;
+    if (!EnumProcesses(pids, sizeof(pids), &bytes_len))
+        return (result_t){ENUM_PROCESSES, GetLastError()};
+    const size_t len = bytes_len / sizeof(DWORD);
+
+    wchar_t dir[MAX_PATH];
+    const size_t dir_len = steam_dir_lowercase(steam, dir);
+
+    for (size_t i = 0; i < len; i++) {
+        const DWORD pid = pids[i];
+        const HANDLE process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE, FALSE, pid);
+        if (process == NULL) continue;
+        wchar_t path[MAX_PATH];
+        DWORD path_len = sizeof(path) / sizeof(wchar_t);
+        if (!QueryFullProcessImageNameW(process, 0, &path, &path_len)) goto next_process;
+        if (steam_path_is_ancestor(path, path_len, dir, dir_len)) {
+            if (!TerminateProcess(process, EXIT_SUCCESS)) {
+                CloseHandle(process);
+                return (result_t){KILL_STEAM, GetLastError()};
+            }
+        }
+
+        next_process:
+        CloseHandle(process);
+    }
+    return SUCCESS;
 }

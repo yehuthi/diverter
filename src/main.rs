@@ -41,10 +41,8 @@ fn main() {
         }
     }
 
-    if true || cli.restart {
-        steam.shutdown().unwrap();
-        // XXX: wait a bit for child processes to die
-        std::thread::sleep(std::time::Duration::from_secs(5));
+    if cli.restart {
+        steam.kill().unwrap();
         steam.launch().unwrap();
     }
 }
