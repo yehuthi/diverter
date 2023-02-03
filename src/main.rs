@@ -1,7 +1,7 @@
 use std::process;
 
 use clap::Parser;
-use diverter::Username;
+use diverter::{Steam, Username};
 
 #[derive(clap::Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -19,13 +19,12 @@ pub struct Cli {
 
 fn main() {
     let cli = Cli::parse();
-    let steam = diverter::Steam::new().unwrap();
+    let steam = Steam::new().unwrap();
 
     if cli.get {
-        let mut buffer = [0u8; 33];
-        match diverter::get_auto_login_user(&mut buffer) {
-            Ok(len) => {
-                println!("{}", std::str::from_utf8(&buffer[..len]).expect("the retrieved string of the account from the registry is not valid ASCII/UTF-8."));
+        match Steam::get_auto_login_user() {
+            Ok(username) => {
+                println!("{}", std::str::from_utf8(username.as_bytes()).expect("the retrieved string of the account from the registry is not valid ASCII/UTF-8."));
             }
             Err(e) => {
                 eprintln!("failed to get the current username: {e}");
@@ -35,7 +34,7 @@ fn main() {
     }
 
     if let Some(new_username) = cli.switch {
-        if let Err(e) = diverter::set_auto_login_user(new_username.as_bytes_with_nul()) {
+        if let Err(e) = Steam::set_auto_login_user(new_username) {
             eprintln!("failed to set the new username: {e}");
             process::exit(1)
         }

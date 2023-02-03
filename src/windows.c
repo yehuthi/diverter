@@ -8,6 +8,7 @@
 typedef enum {
     OK = 0,
     READ_STEAM_REGISTRY,
+    WRITE_STEAM_REGISTRY,
     CANONICALIZE_STEAM_PATH,
     LAUNCH_STEAM,
     WAIT_STEAM_EXIT,
@@ -146,4 +147,31 @@ result_t steam_kill(steam_t const *steam, uint8_t killed) {
         CloseHandle(process);
     }
     return SUCCESS;
+}
+
+/// ensure username is lowercase and username_len includes NUL terminator
+result_t steam_set_auto_login_user(const char* username, uint8_t username_len) {
+    LSTATUS status = RegSetKeyValueA(
+        HKEY_CURRENT_USER,
+        "SOFTWARE\\Valve\\Steam",
+        "AutoLoginUser",
+        REG_SZ,
+        username,
+        username_len);
+    return (status == ERROR_SUCCESS) ? SUCCESS : (result_t){WRITE_STEAM_REGISTRY, status};
+}
+
+/// ensure username is lowercase and username_len includes NUL terminator
+result_t steam_get_auto_login_user(char* username, uint8_t *username_len) {
+    DWORD len = username_len;
+    LSTATUS status = RegGetValueA(
+        HKEY_CURRENT_USER,
+        "SOFTWARE\\Valve\\Steam",
+        "AutoLoginUser",
+        RRF_RT_REG_SZ,
+        NULL,
+        username,
+        &len);
+    *username_len = len;
+    return (status == ERROR_SUCCESS) ? SUCCESS : (result_t){WRITE_STEAM_REGISTRY, status};
 }

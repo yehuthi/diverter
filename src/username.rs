@@ -45,6 +45,13 @@ impl Username {
     /// The minimum length of a [`Username`].
     pub const MIN_LEN: usize = 3;
 
+    pub unsafe fn from_raw_parts(
+        data: [MaybeUninit<u8>; Username::MAX_LEN + 1],
+        len: usize,
+    ) -> Self {
+        Self { data, len }
+    }
+
     /// Gets a slice of the username as ASCII bytes with a NUL character terminator (see also [`Username::as_bytes`]).
     #[inline(always)]
     pub const fn as_bytes_with_nul(&self) -> &[u8] {
