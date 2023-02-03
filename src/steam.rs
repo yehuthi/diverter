@@ -52,6 +52,7 @@ extern "C" {
     fn steam_init(steam: *mut Steam) -> CResult;
     fn steam_shutdown(steam: *const Steam) -> CResult;
     fn steam_launch(steam: *const Steam) -> CResult;
+    fn steam_launch_fast(steam: *const Steam) -> CResult;
     fn steam_kill(steam: *const Steam, killed: *mut u8) -> CResult;
 }
 
@@ -87,6 +88,15 @@ impl Steam {
 
     pub fn launch(&self) -> io::Result<()> {
         let result = unsafe { steam_launch(self) };
+        if result.phase == CPhase::Ok {
+            Ok(())
+        } else {
+            Err(result.into())
+        }
+    }
+
+    pub fn launch_fast(&self) -> io::Result<()> {
+        let result = unsafe { steam_launch_fast(self) };
         if result.phase == CPhase::Ok {
             Ok(())
         } else {

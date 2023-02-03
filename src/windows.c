@@ -92,6 +92,17 @@ result_t steam_launch(steam_t const *steam) {
     return result;
 }
 
+result_t steam_launch_fast(steam_t const *steam) {
+    PROCESS_INFORMATION process;
+    wchar_t args[] = L"-noverifyfiles -noverifyfiles";
+    // the flag is passed twice, because passing it once doesn't seem to work.
+    // this might be because perhaps Steam ignores the first argument, expecting it to be its executable path.
+    const result_t result = steam_launch_args(steam, args, &process);
+    CloseHandle(process.hThread);
+    CloseHandle(process.hProcess);
+    return result;
+}
+
 /// @return dir length, excluding NUL
 static size_t steam_dir_lowercase(steam_t const *steam, wchar_t out[MAX_PATH]) {
     const size_t dir_len = steam->len - (sizeof("steam.exe") - /* NUL */ 1);

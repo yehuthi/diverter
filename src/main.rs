@@ -43,6 +43,6 @@ fn main() {
 
     if cli.restart {
         steam.kill().unwrap();
-        steam.launch().unwrap();
+        steam.launch_fast().unwrap();
     }
 }
