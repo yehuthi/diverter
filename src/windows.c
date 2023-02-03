@@ -21,6 +21,7 @@ typedef struct {
 } result_t;
 
 #define SUCCESS ((result_t){OK,ERROR_SUCCESS})
+#define FAILURE(type) ((result_t){type,GetLastError()})
 
 typedef struct {
     /// path length excluding NUL terminator.
@@ -108,7 +109,7 @@ result_t steam_kill(steam_t const *steam, uint8_t killed) {
     DWORD pids[5000];
     DWORD bytes_len = 0;
     if (!EnumProcesses(pids, sizeof(pids), &bytes_len))
-        return (result_t){ENUM_PROCESSES, GetLastError()};
+        return FAILURE(ENUM_PROCESSES);
     const size_t len = bytes_len / sizeof(DWORD);
 
     wchar_t dir[MAX_PATH];
@@ -124,7 +125,7 @@ result_t steam_kill(steam_t const *steam, uint8_t killed) {
         if (steam_path_is_ancestor(path, path_len, dir, dir_len)) {
             if (!TerminateProcess(process, EXIT_SUCCESS)) {
                 CloseHandle(process);
-                return (result_t){KILL_STEAM, GetLastError()};
+                return FAILURE(KILL_STEAM);
             }
         }
 
