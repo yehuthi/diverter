@@ -43,7 +43,7 @@ result_t steam_init(steam_t *steam) {
         &size
     );
     if (status != ERROR_SUCCESS) return (result_t){READ_STEAM_REGISTRY, status};
-    steam->len = size / sizeof(wchar_t) - /* NUL */ 1;
+    steam->len = (wchar_t)(size / sizeof(wchar_t) - /* NUL */ 1);
     for (size_t i = 0; i < steam->len; i++)
         steam->path[i] = steam->path[i] == '/' ? '\\' : towlower(steam->path[i]);
     return SUCCESS;
@@ -135,9 +135,11 @@ result_t steam_kill(steam_t const *steam, uint8_t killed) {
         if (process == NULL) continue;
         wchar_t path[MAX_PATH];
         DWORD path_len = sizeof(path) / sizeof(wchar_t);
-        if (!QueryFullProcessImageNameW(process, 0, &path, &path_len)) goto next_process;
+        if (!QueryFullProcessImageNameW(process, 0, path, &path_len)) goto next_process;
         if (steam_path_is_ancestor(path, path_len, dir, dir_len)) {
-            if (!TerminateProcess(process, EXIT_SUCCESS)) {
+            if (TerminateProcess(process, EXIT_SUCCESS)) {
+                killed = 1;
+            } else {
                 CloseHandle(process);
                 return FAILURE(KILL_STEAM);
             }
@@ -163,7 +165,7 @@ result_t steam_set_auto_login_user(const char* username, uint8_t username_len) {
 
 /// ensure username is lowercase and username_len includes NUL terminator
 result_t steam_get_auto_login_user(char* username, uint8_t *username_len) {
-    DWORD len = username_len;
+    DWORD len = *username_len;
     LSTATUS status = RegGetValueA(
         HKEY_CURRENT_USER,
         "SOFTWARE\\Valve\\Steam",
@@ -172,6 +174,6 @@ result_t steam_get_auto_login_user(char* username, uint8_t *username_len) {
         NULL,
         username,
         &len);
-    *username_len = len;
+    *username_len = (uint8_t)len;
     return (status == ERROR_SUCCESS) ? SUCCESS : (result_t){WRITE_STEAM_REGISTRY, status};
 }
