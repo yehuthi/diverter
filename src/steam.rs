@@ -5,7 +5,7 @@ use winapi::{
     shared::minwindef::{DWORD, MAX_PATH},
 };
 
-use crate::Username;
+use crate::{Username, UsernameError};
 
 #[repr(C)]
 #[derive(Hash, Clone, Copy, PartialEq, PartialOrd, Eq, Ord)]
@@ -28,9 +28,8 @@ impl Debug for Steam {
 #[allow(dead_code)]
 enum CPhase {
     Ok = 0,
-    ReadSteamRegistry,
+    ReadSteamRegistry = 1,
     WriteSteamRegistry,
-    CanonicalizeSteamPath,
     LaunchSteam,
     WaitSteamExit,
     EnumProcesses,
@@ -44,9 +43,48 @@ struct CResult {
     win_code: DWORD,
 }
 
-impl From<CResult> for io::Error {
-    fn from(result: CResult) -> Self {
-        Self::from_raw_os_error(result.win_code as i32)
+#[derive(Debug, thiserror::Error)]
+#[repr(u32)]
+pub enum Error {
+    #[error("failed to read registry in Steam's subkey: {0}")]
+    ReadSteamRegistry(io::Error) = 1,
+    #[error("failed to write registry in Steam's subkey: {0}")]
+    WriteSteamRegistry(io::Error),
+    #[error("failed to launch Steam: {0}")]
+    LaunchSteam(io::Error),
+    #[error("failed to wait for Steam to exit: {0}")]
+    WaitSteamExit(io::Error),
+    #[error("failed to search for a Steam process: {0}")]
+    EnumProcesses(io::Error),
+    #[error("failed to terminate Steam's process: {0}")]
+    KillSteam(io::Error),
+    #[error("the auto-login username in the registry is invalid: {0}")]
+    InvalidUsernameInRegistry(UsernameError),
+}
+
+impl From<CResult> for Option<Error> {
+    fn from(value: CResult) -> Self {
+        match value.phase {
+            CPhase::Ok => None,
+            CPhase::ReadSteamRegistry => Some(Error::ReadSteamRegistry(
+                io::Error::from_raw_os_error(value.win_code as _),
+            )),
+            CPhase::WriteSteamRegistry => Some(Error::WriteSteamRegistry(
+                io::Error::from_raw_os_error(value.win_code as _),
+            )),
+            CPhase::LaunchSteam => Some(Error::LaunchSteam(io::Error::from_raw_os_error(
+                value.win_code as _,
+            ))),
+            CPhase::WaitSteamExit => Some(Error::WaitSteamExit(io::Error::from_raw_os_error(
+                value.win_code as _,
+            ))),
+            CPhase::EnumProcesses => Some(Error::EnumProcesses(io::Error::from_raw_os_error(
+                value.win_code as _,
+            ))),
+            CPhase::KillSteam => Some(Error::KillSteam(io::Error::from_raw_os_error(
+                value.win_code as _,
+            ))),
+        }
     }
 }
 
@@ -61,11 +99,15 @@ extern "C" {
     fn steam_get_auto_login_user(username: *mut c_char, username_len: *mut usize) -> CResult;
 }
 
-#[derive(Debug)]
-pub enum ShutdownError {
-    LaunchSteamError(io::Error),
-    WaitSteamError(io::Error),
+fn err_opt<T, E>(error: Option<E>, value: T) -> ::std::result::Result<T, E> {
+    if let Some(e) = error {
+        Err(e)
+    } else {
+        Ok(value)
+    }
 }
+
+pub type Result<T> = ::std::result::Result<T, Error>;
 
 impl Steam {
     pub fn new() -> io::Result<Self> {
@@ -81,63 +123,40 @@ impl Steam {
         }
     }
 
-    pub fn shutdown(&self) -> Result<(), ShutdownError> {
-        let result = unsafe { steam_shutdown(self) };
-        match result.phase {
-            CPhase::Ok => Ok(()),
-            CPhase::LaunchSteam => Err(ShutdownError::LaunchSteamError(result.into())),
-            CPhase::WaitSteamExit => Err(ShutdownError::WaitSteamError(result.into())),
-            _ => unreachable!(),
-        }
+    pub fn shutdown(&self) -> Result<()> {
+        err_opt(unsafe { steam_shutdown(self) }.into(), ())
     }
 
-    pub fn launch(&self) -> io::Result<()> {
-        let result = unsafe { steam_launch(self) };
-        if result.phase == CPhase::Ok {
-            Ok(())
-        } else {
-            Err(result.into())
-        }
+    pub fn launch(&self) -> Result<()> {
+        err_opt(unsafe { steam_launch(self) }.into(), ())
     }
 
-    pub fn launch_fast(&self) -> io::Result<()> {
-        let result = unsafe { steam_launch_fast(self) };
-        if result.phase == CPhase::Ok {
-            Ok(())
-        } else {
-            Err(result.into())
-        }
+    pub fn launch_fast(&self) -> Result<()> {
+        err_opt(unsafe { steam_launch_fast(self) }.into(), ())
     }
 
-    pub fn kill(&self) -> io::Result<bool> {
+    pub fn kill(&self) -> Result<bool> {
         let mut killed = 0u8;
-        let result = unsafe { steam_kill(self, &mut killed) };
-        match result.phase {
-            CPhase::Ok => Ok(killed != 0),
-            _ => Err(io::Error::from_raw_os_error(result.win_code as _)),
-        }
+        err_opt(unsafe { steam_kill(self, &mut killed) }.into(), killed != 0)
     }
 
-    pub fn set_auto_login_user(username: Username) -> io::Result<()> {
+    pub fn set_auto_login_user(username: Username) -> Result<()> {
         let username = username.as_bytes_with_nul();
-        let result =
-            unsafe { steam_set_auto_login_user(username.as_ptr() as *const i8, username.len()) };
-        if result.phase == CPhase::Ok {
-            Ok(())
-        } else {
-            Err(result.into())
-        }
+        err_opt(
+            unsafe { steam_set_auto_login_user(username.as_ptr() as *const i8, username.len()) }
+                .into(),
+            (),
+        )
     }
 
-    pub fn get_auto_login_user() -> io::Result<Username> {
+    pub fn get_auto_login_user() -> Result<Username> {
         let mut data = [MaybeUninit::uninit(); Username::MAX_LEN + 1];
         let mut len = data.len();
+        err_opt(
+            (unsafe { steam_get_auto_login_user(data.as_mut_ptr() as *mut i8, &mut len) }).into(),
+            (),
+        )?;
         // TODO: error-handle, this can violate invariants
-        let result = unsafe { steam_get_auto_login_user(data.as_mut_ptr() as *mut i8, &mut len) };
-        if result.phase == CPhase::Ok {
-            unsafe { Ok(Username::from_raw_parts(data, len)) }
-        } else {
-            Err(result.into())
-        }
+        Ok(unsafe { Username::from_raw_parts(data, len) })
     }
 }

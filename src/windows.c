@@ -7,9 +7,8 @@
 // note: on change, sync the Phase enum in steam.rs
 typedef enum {
     OK = 0,
-    READ_STEAM_REGISTRY,
+    READ_STEAM_REGISTRY = 1,
     WRITE_STEAM_REGISTRY,
-    CANONICALIZE_STEAM_PATH,
     LAUNCH_STEAM,
     WAIT_STEAM_EXIT,
     ENUM_PROCESSES,
