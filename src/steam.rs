@@ -132,6 +132,7 @@ impl Steam {
     pub fn get_auto_login_user() -> io::Result<Username> {
         let mut data = [MaybeUninit::uninit(); Username::MAX_LEN + 1];
         let mut len = data.len();
+        // TODO: error-handle, this can violate invariants
         let result = unsafe { steam_get_auto_login_user(data.as_mut_ptr() as *mut i8, &mut len) };
         if result.phase == CPhase::Ok {
             unsafe { Ok(Username::from_raw_parts(data, len)) }
