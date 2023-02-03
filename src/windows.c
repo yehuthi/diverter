@@ -48,7 +48,8 @@ result_t steam_init(steam_t *steam) {
     return SUCCESS;
 }
 
-/// note: close the handles to the process info's process and thread after their use.
+/// note 1: close the handles to the process info's process and thread after their use.
+/// note 2: args needs to be writable.
 static result_t steam_launch_args(steam_t const *steam, wchar_t *args, PROCESS_INFORMATION *process) {
     STARTUPINFOW startup = {0};
     startup.cb = sizeof(startup);
