@@ -81,6 +81,7 @@ impl<'a> Iterator for Scanner<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         self.start = self.current;
         let head = self.advance();
+        // TODO: comments?
         match head {
             Some(c) if c.is_ascii_whitespace() => self.next(),
             Some(b'"') => Some(self.string_tail()),
