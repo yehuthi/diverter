@@ -150,13 +150,13 @@ impl Steam {
     }
 
     pub fn get_auto_login_user() -> Result<Username> {
-        let mut data = [MaybeUninit::uninit(); Username::MAX_LEN + 1];
+        let mut data = [MaybeUninit::<u8>::uninit(); Username::MAX_LEN + 1];
         let mut len = data.len();
         err_opt(
             (unsafe { steam_get_auto_login_user(data.as_mut_ptr() as *mut i8, &mut len) }).into(),
             (),
         )?;
-        // TODO: error-handle, this can violate invariants
-        Ok(unsafe { Username::from_raw_parts(data, len) })
+        let username = unsafe { std::slice::from_raw_parts(data.as_ptr() as *const u8, len - 1) };
+        Ok(Username::try_from(username).map_err(Error::InvalidUsernameInRegistry)?)
     }
 }
