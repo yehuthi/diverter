@@ -142,6 +142,7 @@ typedef struct {
     HANDLE handle;
 } steam_process_t;
 
+// note: remember to close the handle after use
 steam_process_t steam_process_iter_next(steam_process_iter_t *iter) {
     for (; iter->index < iter->len; iter->index++) {
         const DWORD pid = iter->pids[iter->index];
@@ -206,4 +207,21 @@ result_t steam_get_auto_login_user(char* username, uint8_t *username_len) {
         &len);
     *username_len = (uint8_t)len;
     return (status == ERROR_SUCCESS) ? SUCCESS : (result_t){WRITE_STEAM_REGISTRY, status};
+}
+
+result_t steam_is_running(const steam_t* steam, uint8_t is_running) {
+    is_running = 0;
+    wchar_t dir[MAX_PATH];
+    const size_t dir_len = steam_dir_lowercase(steam, dir);
+
+    steam_process_iter_t iter;
+    DWORD iter_result = steam_process_iter_init(&iter, dir, dir_len);
+    if (iter_result != ERROR_SUCCESS) return (result_t){ENUM_PROCESSES, iter_result};
+
+    for (steam_process_t process = steam_process_iter_next(&iter); process.pid != 0; process = steam_process_iter_next(&iter)) {
+        CloseHandle(process.handle);
+        is_running = 1;
+        break;
+    }
+    return SUCCESS;
 }

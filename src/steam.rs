@@ -125,6 +125,7 @@ extern "C" {
     fn steam_kill(steam: *const Steam, killed: *mut u8) -> CResult;
     fn steam_set_auto_login_user(username: *const c_char, username_len: usize) -> CResult;
     fn steam_get_auto_login_user(username: *mut c_char, username_len: *mut usize) -> CResult;
+    fn steam_is_running(steam: *const Steam, is_running: *mut u8) -> CResult;
 }
 
 /// Converts an error [`Option`] into a [`Result`](::std::result::Result).
@@ -204,5 +205,15 @@ impl Steam {
         )?;
         let username = unsafe { std::slice::from_raw_parts(data.as_ptr() as *const u8, len - 1) };
         Username::try_from(username).map_err(Error::InvalidUsernameInRegistry)
+    }
+
+    /// Checks if the Steam client is running.
+    #[inline]
+    pub fn is_running(&self) -> Result<bool> {
+        let mut is_running = 0;
+        err_opt(
+            unsafe { steam_is_running(self, &mut is_running) }.into(),
+            is_running != 0,
+        )
     }
 }
