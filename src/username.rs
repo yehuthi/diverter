@@ -6,18 +6,74 @@ use std::{
     str::FromStr,
 };
 
-/// A Steam username.
-///
-/// # Validation
-/// A username must:
-/// - be at least [`Username::MIN_LEN`] (3) characters.
-/// - be at most [`Username::MAX_LEN`] (32) characters.
-/// - only consist of characters matching the class `[a-zA-Z0-9_]`.
-#[derive(Clone, Copy)]
-pub struct Username {
-    data: [MaybeUninit<u8>; Username::MAX_LEN + /* null terminator */ 1],
-    len: usize,
+mod core {
+    //! Core functionality for [`Username`].
+    //!
+    //! This is in its own module to reduce surface area for invariant invalidation.
+
+    use super::*;
+
+    /// A Steam username.
+    ///
+    /// # Validation
+    /// A username must:
+    /// - be at least [`Username::MIN_LEN`] (3) characters.
+    /// - be at most [`Username::MAX_LEN`] (32) characters.
+    /// - only consist of characters matching the class `[a-zA-Z0-9_]`.
+    #[derive(Clone, Copy)]
+    pub struct Username {
+        /// The username in lowercase with a NUL-terminator.
+        data: [MaybeUninit<u8>; Username::MAX_LEN + /* null terminator */ 1],
+        /// The length of the username, excluding NUL-terminator.
+        len: usize,
+    }
+
+    impl Username {
+        /// Gets the username's length.
+        #[inline(always)]
+        pub fn len(&self) -> usize {
+            self.len
+        }
+
+        /// Gets a slice of the username as ASCII bytes with a NUL character terminator (see also [`Username::as_bytes`]).
+        #[inline(always)]
+        pub const fn as_bytes_with_nul(&self) -> &[u8] {
+            // SAFETY:
+            // per field invariants
+            unsafe { std::slice::from_raw_parts(self.data.as_ptr() as *const u8, self.len) }
+        }
+    }
+
+    impl<'a> TryFrom<&'a [u8]> for Username {
+        type Error = UsernameError;
+
+        #[inline]
+        fn try_from(username: &'a [u8]) -> Result<Self, Self::Error> {
+            if username.len() >= Username::MAX_LEN {
+                Err(UsernameError::TooLong)?;
+            }
+            if username.len() <= Username::MIN_LEN {
+                Err(UsernameError::TooShort)?;
+            }
+            let mut data = [MaybeUninit::uninit(); Username::MAX_LEN + 1];
+            for (&src, dst) in username.iter().zip(data.iter_mut()) {
+                if !matches!(src, b'a'..=b'z' | b'0'..=b'9' | b'A'..=b'Z' | b'_') {
+                    Err(UsernameError::IllegalCharacters)?
+                }
+                *dst = MaybeUninit::new(src.to_ascii_lowercase());
+            }
+
+            data[username.len()] = MaybeUninit::new(b'\0');
+
+            Ok(Self {
+                data,
+                len: username.len() + /* NUL terminator */ 1,
+            })
+        }
+    }
 }
+
+pub use self::core::*;
 
 impl Debug for Username {
     #[inline]
@@ -27,7 +83,7 @@ impl Debug for Username {
                 "data",
                 &format_args!("\"{}\"", self.as_bytes_with_nul().escape_ascii()),
             )
-            .field("len", &self.len)
+            .field("len", &self.len())
             .finish()
     }
 }
@@ -45,42 +101,11 @@ impl Username {
     /// The minimum length of a [`Username`].
     pub const MIN_LEN: usize = 3;
 
-    /// Gets a slice of the username as ASCII bytes with a NUL character terminator (see also [`Username::as_bytes`]).
-    #[inline(always)]
-    pub const fn as_bytes_with_nul(&self) -> &[u8] {
-        unsafe { std::slice::from_raw_parts(self.data.as_ptr() as *const u8, self.len) }
-    }
-
     /// Gets a slice of the username as ASCII bytes (see also [`Username::as_bytes_with_nul`]).
     #[inline(always)]
-    pub const fn as_bytes(&self) -> &[u8] {
-        unsafe { std::slice::from_raw_parts(self.data.as_ptr() as *const u8, self.len - 1) }
-    }
-}
-
-impl<'a> TryFrom<&'a [u8]> for Username {
-    type Error = UsernameError;
-
-    #[inline]
-    fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
-        if value.len() > Username::MAX_LEN {
-            Err(UsernameError::TooLong)?;
-        }
-        if value.len() < Username::MIN_LEN {
-            Err(UsernameError::TooShort)?;
-        }
-        let mut data = [MaybeUninit::uninit(); Username::MAX_LEN + 1];
-        for (&src, dst) in value.iter().zip(data.iter_mut()) {
-            if !matches!(src, b'a'..=b'z' | b'0'..=b'9' | b'A'..=b'Z' | b'_') {
-                Err(UsernameError::IllegalCharacters)?
-            }
-            *dst = MaybeUninit::new(src.to_ascii_lowercase());
-        }
-
-        Ok(Self {
-            data,
-            len: value.len() + 1,
-        })
+    pub fn as_bytes(&self) -> &[u8] {
+        let with_nul = self.as_bytes_with_nul();
+        &with_nul[..with_nul.len() - 1]
     }
 }
 
