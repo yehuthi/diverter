@@ -8,3 +8,5 @@ pub use username::{Username, UsernameError};
 
 mod steam;
 pub use steam::{Error, Result, Steam};
+
+pub mod vdf;
