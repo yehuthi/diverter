@@ -7,4 +7,4 @@ mod username;
 pub use username::{Username, UsernameError};
 
 mod steam;
-pub use steam::Steam;
+pub use steam::{Error, Result, Steam};
