@@ -1,4 +1,4 @@
-# diverter
+# <img src="https://raw.githubusercontent.com/yehuthi/diverter/master/doc/diverter.png" alt="diverter" width=100 align=left /> diverter [<img src="https://img.shields.io/crates/v/diverter" align="right" />](https://crates.io/crates/diverter)
 
 Switch between Steam accounts without relogging on Windows.
 
