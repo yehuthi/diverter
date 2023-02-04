@@ -108,10 +108,16 @@ impl FromStr for Username {
 #[derive(Debug, thiserror::Error)]
 pub enum UsernameError {
     /// The username is too short.
-    #[error("the username is too short")]
+    #[error(
+        "the username is too short, it must be at least {} characters",
+        Username::MIN_LEN
+    )]
     TooShort,
     /// The username is too long.
-    #[error("the username is too long")]
+    #[error(
+        "the username is too long, it must be at most {} characters",
+        Username::MAX_LEN
+    )]
     TooLong,
     /// The username is contains illegal characters.
     #[error("the username contains illegal characters, it must be ASCII")]
