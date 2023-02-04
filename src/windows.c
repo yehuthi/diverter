@@ -111,42 +111,73 @@ static size_t steam_dir_lowercase(steam_t const *steam, wchar_t out[MAX_PATH]) {
     return dir_len;
 }
 
-static uint8_t steam_path_is_ancestor(wchar_t* path, size_t path_len, wchar_t* dir_lowercase, size_t dir_len) {
+static uint8_t steam_path_is_ancestor(wchar_t* path, size_t path_len, const wchar_t* dir_lowercase, size_t dir_len) {
     if (path_len < dir_len) return 0;
     for (size_t i = dir_len - 1; i != ((size_t)-1); i--)
         if (towlower(path[i]) != dir_lowercase[i]) return 0;
     return 1;
 }
 
-result_t steam_kill(steam_t const *steam, uint8_t killed) {
+typedef struct {
     DWORD pids[5000];
+    uint16_t len;
+    uint16_t index;
+    const wchar_t *dir;
+    size_t dir_len;
+} steam_process_iter_t;
+
+DWORD steam_process_iter_init(steam_process_iter_t *iter, wchar_t* steam_dir, size_t steam_dir_len) {
     DWORD bytes_len = 0;
-    if (!EnumProcesses(pids, sizeof(pids), &bytes_len))
-        return FAILURE(ENUM_PROCESSES);
-    const size_t len = bytes_len / sizeof(DWORD);
+    if (!EnumProcesses(iter->pids, sizeof(iter->pids), &bytes_len))
+        return GetLastError();
+    iter->index = 0;
+    iter->len = (uint16_t)(bytes_len / sizeof(DWORD));
+    iter->dir = steam_dir;
+    iter->dir_len = steam_dir_len;
+    return ERROR_SUCCESS;
+}
 
-    wchar_t dir[MAX_PATH];
-    const size_t dir_len = steam_dir_lowercase(steam, dir);
+typedef struct {
+    DWORD pid;
+    HANDLE handle;
+} steam_process_t;
 
-    for (size_t i = 0; i < len; i++) {
-        const DWORD pid = pids[i];
+steam_process_t steam_process_iter_next(steam_process_iter_t *iter) {
+    for (; iter->index < iter->len; iter->index++) {
+        const DWORD pid = iter->pids[iter->index];
         const HANDLE process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE, FALSE, pid);
         if (process == NULL) continue;
         wchar_t path[MAX_PATH];
         DWORD path_len = sizeof(path) / sizeof(wchar_t);
         if (!QueryFullProcessImageNameW(process, 0, path, &path_len)) goto next_process;
-        if (steam_path_is_ancestor(path, path_len, dir, dir_len)) {
-            if (TerminateProcess(process, EXIT_SUCCESS)) {
-                killed = 1;
-            } else {
-                CloseHandle(process);
-                return FAILURE(KILL_STEAM);
-            }
+        if (steam_path_is_ancestor(path, path_len, iter->dir, iter->dir_len)) {
+            iter->index++;
+            return (steam_process_t){pid,process};
         }
-
         next_process:
         CloseHandle(process);
     }
+    return (steam_process_t){0,0};
+}
+
+result_t steam_kill(steam_t const *steam, uint8_t killed) {
+    wchar_t dir[MAX_PATH];
+    const size_t dir_len = steam_dir_lowercase(steam, dir);
+
+    steam_process_iter_t iter;
+    DWORD iter_result = steam_process_iter_init(&iter, dir, dir_len);
+    if (iter_result != ERROR_SUCCESS) return (result_t){ENUM_PROCESSES, iter_result};
+
+    for (steam_process_t process = steam_process_iter_next(&iter); process.pid != 0; process = steam_process_iter_next(&iter)) {
+        if (TerminateProcess(process.handle, EXIT_SUCCESS)) {
+            CloseHandle(process.handle);
+            killed = 1;
+        } else {
+            CloseHandle(process.handle);
+            return FAILURE(KILL_STEAM);
+        }
+    }
+
     return SUCCESS;
 }
 
