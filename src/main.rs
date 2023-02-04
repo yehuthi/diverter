@@ -29,7 +29,7 @@ fn main() -> ExitCode {
             Err(e) => {
                 eprintln!("failed to get the current username: {e}");
                 if cli.set.is_none() && cli.restart == 0 {
-                    return ExitCode::from(69);
+                    return e.into();
                 }
             }
         }
@@ -38,7 +38,7 @@ fn main() -> ExitCode {
     if let Some(new_username) = cli.set {
         if let Err(e) = Steam::set_auto_login_user(new_username) {
             eprintln!("failed to set the new username: {e}");
-            return ExitCode::from(69);
+            return e.into();
         }
     }
 
@@ -47,7 +47,7 @@ fn main() -> ExitCode {
             Ok(steam) => steam,
             Err(e) => {
                 eprintln!("failed to locate Steam for restarting: {e}");
-                return ExitCode::from(69);
+                return e.into();
             }
         };
         let graceful_shutdown = cli.restart >= 3;
@@ -74,7 +74,7 @@ fn main() -> ExitCode {
         };
         if let Err(e) = launch_result {
             eprintln!("failed to launch Steam to restart it: {e}");
-            return ExitCode::from(69);
+            return e.into();
         }
     }
 

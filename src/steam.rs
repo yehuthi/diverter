@@ -1,6 +1,9 @@
 //! Steam client operations.
 
-use std::{ffi::c_char, fmt::Debug, io, mem::MaybeUninit, os::windows::prelude::OsStringExt};
+use std::{
+    ffi::c_char, fmt::Debug, io, mem::MaybeUninit, os::windows::prelude::OsStringExt,
+    process::ExitCode,
+};
 
 use winapi::{
     ctypes::wchar_t,
@@ -74,6 +77,16 @@ pub enum Error {
     /// Indicates an invalid username was found in the Windows registry.
     #[error("the auto-login username in the registry is invalid: {0}")]
     InvalidUsernameInRegistry(UsernameError),
+}
+
+/// Exit codes per `sysexits.h`.
+impl From<Error> for ExitCode {
+    fn from(e: Error) -> Self {
+        ExitCode::from(match e {
+            Error::InvalidUsernameInRegistry(_) => 78,
+            _ => 69,
+        })
+    }
 }
 
 impl From<CResult> for Option<Error> {
