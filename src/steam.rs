@@ -153,7 +153,7 @@ impl Steam {
 
     /// Launches Steam.
     ///
-    /// See also: [`launch_fast`].
+    /// See also: [`Self::launch_fast`].
     #[inline]
     pub fn launch(&self) -> Result<()> {
         err_opt(unsafe { steam_launch(self) }.into(), ())
