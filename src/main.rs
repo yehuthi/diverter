@@ -57,10 +57,13 @@ fn main() -> ExitCode {
             if result.is_ok() {
                 // wait for Steam processes to close:
                 loop {
-                    if steam.is_running().unwrap() {
-                        std::thread::sleep(Duration::from_millis(100));
-                    } else {
-                        break;
+                    match steam.is_running() {
+                        Ok(true) => std::thread::sleep(Duration::from_millis(100)),
+                        Ok(false) => break,
+                        Err(e) => {
+                            eprintln!("failed to check if Steam closed, which is necessary for a graceful shutdown: {e}");
+                            return e.into();
+                        }
                     }
                 }
             }
