@@ -132,17 +132,12 @@ pub type Result<T> = ::std::result::Result<T, Error>;
 impl Steam {
     /// Attempts to create a new [`Steam`] handle.
     #[inline]
-    pub fn new() -> io::Result<Self> {
+    pub fn new() -> Result<Self> {
         let mut steam = Steam {
             len: 0,
             path: [0; MAX_PATH],
         };
-        let result = unsafe { steam_init(&mut steam) };
-        if result.phase == CPhase::Ok {
-            Ok(steam)
-        } else {
-            Err(io::Error::from_raw_os_error(result.win_code as i32))
-        }
+        err_opt(unsafe { steam_init(&mut steam) }.into(), steam)
     }
 
     /// Gracefully shuts down Steam, if running.
