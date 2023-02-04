@@ -88,13 +88,6 @@ impl Debug for Username {
     }
 }
 
-impl Display for Username {
-    #[inline(always)]
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        Display::fmt(unsafe { std::str::from_utf8_unchecked(self.as_bytes()) }, f)
-    }
-}
-
 impl Username {
     /// The maximum length of a [`Username`].
     pub const MAX_LEN: usize = 32;
@@ -124,6 +117,21 @@ impl FromStr for Username {
     #[inline(always)]
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Username::try_from(s)
+    }
+}
+
+impl<'a> AsRef<str> for Username {
+    #[inline(always)]
+    fn as_ref(&self) -> &str {
+        // SAFETY: field invariants guarantee a subset of ASCII
+        unsafe { std::str::from_utf8_unchecked(self.as_bytes()) }
+    }
+}
+
+impl Display for Username {
+    #[inline(always)]
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        Display::fmt(AsRef::<str>::as_ref(self), f)
     }
 }
 
