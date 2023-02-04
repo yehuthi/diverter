@@ -55,8 +55,14 @@ fn main() -> ExitCode {
         let shutdown_result = if graceful_shutdown {
             let result = steam.shutdown();
             if result.is_ok() {
-                // wait for the original Steam process to close:
-                std::thread::sleep(Duration::from_secs(10)); // XXX poll instead of wait
+                // wait for Steam processes to close:
+                loop {
+                    if steam.is_running().unwrap() {
+                        std::thread::sleep(Duration::from_millis(100));
+                    } else {
+                        break;
+                    }
+                }
             }
             result
         } else {
