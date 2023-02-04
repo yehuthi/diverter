@@ -31,6 +31,7 @@ mod core {
     impl Username {
         /// Gets the username's length.
         #[inline(always)]
+        #[allow(clippy::len_without_is_empty)] // usernames can't be empty
         pub fn len(&self) -> usize {
             self.len
         }
@@ -120,7 +121,7 @@ impl FromStr for Username {
     }
 }
 
-impl<'a> AsRef<str> for Username {
+impl AsRef<str> for Username {
     #[inline(always)]
     fn as_ref(&self) -> &str {
         // SAFETY: field invariants guarantee a subset of ASCII

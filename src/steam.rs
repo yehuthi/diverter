@@ -190,6 +190,6 @@ impl Steam {
             (),
         )?;
         let username = unsafe { std::slice::from_raw_parts(data.as_ptr() as *const u8, len - 1) };
-        Ok(Username::try_from(username).map_err(Error::InvalidUsernameInRegistry)?)
+        Username::try_from(username).map_err(Error::InvalidUsernameInRegistry)
     }
 }
