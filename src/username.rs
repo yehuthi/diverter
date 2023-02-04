@@ -120,6 +120,6 @@ pub enum UsernameError {
     )]
     TooLong,
     /// The username is contains illegal characters.
-    #[error("the username contains illegal characters, it must be ASCII")]
+    #[error("the username contains illegal characters, only ASCII alphanumeric characters and underscore (_) are allowed")]
     IllegalCharacters,
 }
