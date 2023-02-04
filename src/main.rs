@@ -43,21 +43,38 @@ fn main() -> ExitCode {
     }
 
     if cli.restart > 0 {
-        let steam = Steam::new().unwrap();
+        let steam = match Steam::new() {
+            Ok(steam) => steam,
+            Err(e) => {
+                eprintln!("failed to locate Steam for restarting: {e}");
+                return ExitCode::from(69);
+            }
+        };
         let graceful_shutdown = cli.restart >= 3;
         let graceful_launch = cli.restart >= 2;
-        if graceful_shutdown {
-            steam.shutdown().unwrap();
-            // wait for the original Steam process to close:
-            std::thread::sleep(Duration::from_secs(10)); // XXX poll instead of wait
+        let shutdown_result = if graceful_shutdown {
+            let result = steam.shutdown();
+            if result.is_ok() {
+                // wait for the original Steam process to close:
+                std::thread::sleep(Duration::from_secs(10)); // XXX poll instead of wait
+            }
+            result
         } else {
-            steam.kill().unwrap();
+            steam.kill().map(|_| ())
+        };
+
+        if let Err(e) = shutdown_result {
+            eprintln!("failed to shut Steam down in order to restart it (will still attempt to launch it): {e}");
         }
 
-        if graceful_launch {
-            steam.launch().unwrap();
+        let launch_result = if graceful_launch {
+            steam.launch()
         } else {
-            steam.launch_fast().unwrap();
+            steam.launch_fast()
+        };
+        if let Err(e) = launch_result {
+            eprintln!("failed to launch Steam to restart it: {e}");
+            return ExitCode::from(69);
         }
     }
 
