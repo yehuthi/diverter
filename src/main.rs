@@ -1,7 +1,7 @@
-use std::{process::ExitCode, time::Duration};
+use std::{io::Read, process::ExitCode, time::Duration};
 
 use clap::Parser;
-use diverter::{Steam, Username};
+use diverter::{vdf, Steam, Username};
 
 #[derive(clap::Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -13,6 +13,9 @@ pub struct Cli {
     /// If used with --set, the original value will be printed.
     #[arg(short, long)]
     get: bool,
+    /// Lists registered Steam users.
+    #[arg(short, long)]
+    list: bool,
     #[arg(short, long, action = clap::ArgAction::Count)]
     /// Restarts Steam, with the switched user if supplied.
     /// If supplied twice, allows Steam to check file integrity on startup.
@@ -33,6 +36,25 @@ fn main() -> ExitCode {
                 }
             }
         }
+    }
+
+    if cli.list {
+        let mut source = String::new();
+        Steam::new()
+            .unwrap()
+            .vdf_loginusers()
+            .unwrap()
+            .read_to_string(&mut source)
+            .unwrap();
+        let document =
+            vdf::parse(vdf::Scanner::new(source.as_bytes()).map(|x| x.unwrap())).unwrap();
+        vdf::LoginUser::from_vdf(&document).for_each(|user| {
+            println!(
+                "{} ({})",
+                user.username.escape_ascii(),
+                user.nickname.escape_ascii()
+            )
+        });
     }
 
     if let Some(new_username) = cli.set {
