@@ -6,10 +6,9 @@ pub enum TokenType {
 }
 
 #[derive(Debug, Hash, Clone, Copy, PartialEq, PartialOrd, Eq, Ord)]
-pub struct Token {
+pub struct Token<'a> {
     pub r#type: TokenType,
-    pub start: usize,
-    pub end: usize,
+    pub lexeme: &'a [u8],
 }
 
 #[derive(Debug, Hash, Default, Clone, Copy, PartialEq, PartialOrd, Eq, Ord)]
@@ -44,15 +43,14 @@ impl<'a> Scanner<'a> {
         self.source.get(self.current).copied()
     }
 
-    fn token(self, r#type: TokenType) -> Token {
+    fn token(self, r#type: TokenType) -> Token<'a> {
         Token {
             r#type,
-            start: self.start,
-            end: self.current,
+            lexeme: &self.source[self.start..self.current],
         }
     }
 
-    fn string_tail(&mut self) -> Result<Token, Error> {
+    fn string_tail(&mut self) -> Result<Token<'a>, Error> {
         loop {
             let next = self.peek();
             match next {
@@ -75,7 +73,7 @@ pub enum Error {
 }
 
 impl<'a> Iterator for Scanner<'a> {
-    type Item = Result<Token, Error>;
+    type Item = Result<Token<'a>, Error>;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
