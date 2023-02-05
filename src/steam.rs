@@ -1,7 +1,12 @@
 //! Steam client operations.
 
 use std::{
-    ffi::c_char, fmt::Debug, io, mem::MaybeUninit, os::windows::prelude::OsStringExt,
+    ffi::c_char,
+    fmt::Debug,
+    fs::File,
+    io,
+    mem::MaybeUninit,
+    os::windows::prelude::{FromRawHandle, OsStringExt, RawHandle},
     process::ExitCode,
 };
 
@@ -42,6 +47,7 @@ enum CPhase {
     WaitSteamExit,
     EnumProcesses,
     KillSteam,
+    FileOpenVdf,
 }
 
 /// Reflects `windows.c`'s `result_t`.
@@ -77,6 +83,9 @@ pub enum Error {
     /// Indicates an invalid username was found in the Windows registry.
     #[error("the auto-login username in the registry is invalid: {0}")]
     InvalidUsernameInRegistry(UsernameError),
+    /// Indicates failure to open a VDF file.
+    #[error("failed to open a VDF file: {0}")]
+    VdfOpen(io::Error),
 }
 
 /// Exit codes per `sysexits.h`.
@@ -112,6 +121,9 @@ impl From<CResult> for Option<Error> {
             CPhase::KillSteam => Some(Error::KillSteam(io::Error::from_raw_os_error(
                 value.win_code as _,
             ))),
+            CPhase::FileOpenVdf => Some(Error::VdfOpen(io::Error::from_raw_os_error(
+                value.win_code as _,
+            ))),
         }
     }
 }
@@ -126,6 +138,7 @@ extern "C" {
     fn steam_set_auto_login_user(username: *const c_char, username_len: usize) -> CResult;
     fn steam_get_auto_login_user(username: *mut c_char, username_len: *mut usize) -> CResult;
     fn steam_is_running(steam: *const Steam, is_running: *mut u8) -> CResult;
+    fn steam_vdf_loginusers(steam: *const Steam, file: *mut RawHandle) -> CResult;
 }
 
 /// Converts an error [`Option`] into a [`Result`](::std::result::Result).
@@ -215,5 +228,15 @@ impl Steam {
             unsafe { steam_is_running(self, &mut is_running) }.into(),
             is_running != 0,
         )
+    }
+
+    #[inline]
+    pub fn vdf_loginusers(&self) -> Result<File> {
+        let mut handle: RawHandle = std::ptr::null_mut();
+        err_opt(
+            unsafe { steam_vdf_loginusers(self, &mut handle) }.into(),
+            (),
+        )?;
+        Ok(unsafe { File::from_raw_handle(handle) })
     }
 }

@@ -3,6 +3,7 @@
 #include <Psapi.h>
 #include <Shlwapi.h>
 #include <ctype.h>
+#include <stdio.h>
 
 // note: on change, sync the Phase enum in steam.rs
 typedef enum {
@@ -12,7 +13,8 @@ typedef enum {
     LAUNCH_STEAM,
     WAIT_STEAM_EXIT,
     ENUM_PROCESSES,
-    KILL_STEAM
+    KILL_STEAM,
+    OPEN_VDF,
 } phase_t;
 
 typedef struct {
@@ -225,4 +227,21 @@ result_t steam_is_running(const steam_t* steam, uint8_t *is_running) {
     }
 
     return SUCCESS;
+}
+
+result_t steam_vdf_loginusers(const steam_t *steam, HANDLE* file) {
+    wchar_t path[MAX_PATH];
+    const size_t dir_len = steam_dir_lowercase(steam, path);
+    static wchar_t subpath[] = L"config\\loginusers.vdf";
+    memcpy(&path[dir_len], subpath, sizeof(subpath));
+    *file = CreateFileW(
+        path,
+        GENERIC_READ,
+        FILE_SHARE_READ,
+        NULL,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        NULL
+    );
+    return *file != INVALID_HANDLE_VALUE ? SUCCESS : FAILURE(OPEN_VDF);
 }
