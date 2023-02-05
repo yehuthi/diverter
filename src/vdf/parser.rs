@@ -1,10 +1,24 @@
 use super::Token;
 
+#[derive(Debug, Hash, Default, Clone, Copy, PartialEq, PartialOrd, Eq, Ord)]
+#[repr(transparent)]
+pub struct Id(pub usize);
+
+impl Id {
+    pub const ROOT: Id = Id(!0);
+}
+
+#[derive(Debug, Hash, Clone, Copy, PartialEq, PartialOrd, Eq, Ord)]
+pub enum Value<'a> {
+    String(&'a [u8]),
+    Subkeys(Id),
+}
+
 #[derive(Debug, Hash, Clone, Copy, PartialEq, PartialOrd, Eq, Ord)]
 pub struct KeyValue<'a> {
-    pub parent: usize,
+    pub parent: Id,
     pub key: &'a [u8],
-    pub value: &'a [u8],
+    pub value: Value<'a>,
 }
 
 pub type Document<'a> = Vec<KeyValue<'a>>;
@@ -30,7 +44,7 @@ enum ParseOneTerminal {
 fn parse_one<'a>(
     tokens: &mut impl Iterator<Item = Token<'a>>,
     document: &mut Document<'a>,
-    parent: usize,
+    parent: Id,
     brace_terminal: bool,
 ) -> Result<ParseOneTerminal, Error> {
     let Some(head) = tokens.next() else { return Ok(ParseOneTerminal::Eof) };
@@ -51,14 +65,19 @@ fn parse_one<'a>(
                     document.push(KeyValue {
                         parent,
                         key: unsurround(name.lexeme),
-                        value: unsurround(value.lexeme),
+                        value: Value::String(unsurround(value.lexeme)),
                     });
                     Ok(ParseOneTerminal::Yield)
                 }
                 super::TokenType::BraceLeft => {
-                    let parent = name.lexeme.as_ptr() as usize;
+                    let sub_parent = Id(name.lexeme.as_ptr() as usize);
+                    document.push(KeyValue {
+                        parent,
+                        key: unsurround(name.lexeme),
+                        value: Value::Subkeys(sub_parent),
+                    });
                     loop {
-                        let piece = parse_one(tokens, document, parent, true)?;
+                        let piece = parse_one(tokens, document, sub_parent, true)?;
                         if piece == ParseOneTerminal::BlockEnd {
                             break Ok(ParseOneTerminal::Yield);
                         }
@@ -73,7 +92,7 @@ fn parse_one<'a>(
 pub fn parse<'a>(mut tokens: impl Iterator<Item = Token<'a>>) -> Result<Document<'a>, Error> {
     let mut document = Document::new();
     loop {
-        if parse_one(&mut tokens, &mut document, !0, false)? != ParseOneTerminal::Eof {
+        if parse_one(&mut tokens, &mut document, Id::ROOT, false)? != ParseOneTerminal::Eof {
             break;
         }
     }
