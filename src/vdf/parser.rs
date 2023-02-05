@@ -21,7 +21,36 @@ pub struct KeyValue<'a> {
     pub value: Value<'a>,
 }
 
-pub type Document<'a> = Vec<KeyValue<'a>>;
+#[derive(Debug, Hash, Default, Clone, PartialEq, PartialOrd, Eq, Ord)]
+#[repr(transparent)]
+pub struct Document<'a>(pub Vec<KeyValue<'a>>);
+
+impl<'a> Document<'a> {
+    pub fn subkeys(&self, at: Id, key: &'a [u8]) -> Option<Id> {
+        let result = self.0.iter().find(|row| row.parent == at && row.key == key);
+        match result {
+            Some(KeyValue {
+                value: Value::Subkeys(sub),
+                ..
+            }) => Some(*sub),
+            _ => None,
+        }
+    }
+
+    pub fn value_str(&self, at: Id, name: &[u8]) -> Option<&'a [u8]> {
+        let result = self
+            .0
+            .iter()
+            .find(|row| row.parent == at && row.key == name);
+        match result {
+            Some(KeyValue {
+                value: Value::String(sub),
+                ..
+            }) => Some(*sub),
+            _ => None,
+        }
+    }
+}
 
 #[derive(Debug, Hash, Clone, Copy, PartialEq, PartialOrd, Eq, Ord)]
 pub enum Error {
@@ -62,7 +91,7 @@ fn parse_one<'a>(
             let Some(value ) = tokens.next() else { return Err(Error::ExpectedKeyValueAfterKeyName) };
             match value.r#type {
                 super::TokenType::String => {
-                    document.push(KeyValue {
+                    document.0.push(KeyValue {
                         parent,
                         key: unsurround(name.lexeme),
                         value: Value::String(unsurround(value.lexeme)),
@@ -71,7 +100,7 @@ fn parse_one<'a>(
                 }
                 super::TokenType::BraceLeft => {
                     let sub_parent = Id(name.lexeme.as_ptr() as usize);
-                    document.push(KeyValue {
+                    document.0.push(KeyValue {
                         parent,
                         key: unsurround(name.lexeme),
                         value: Value::Subkeys(sub_parent),
@@ -90,7 +119,7 @@ fn parse_one<'a>(
 }
 
 pub fn parse<'a>(mut tokens: impl Iterator<Item = Token<'a>>) -> Result<Document<'a>, Error> {
-    let mut document = Document::new();
+    let mut document = Document::default();
     loop {
         if parse_one(&mut tokens, &mut document, Id::ROOT, false)? != ParseOneTerminal::Eof {
             break;
