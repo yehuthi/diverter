@@ -31,24 +31,45 @@ impl<'a> Debug for LoginUser<'a> {
     }
 }
 
+#[derive(Debug, Hash, Clone, Copy, PartialEq, PartialOrd, Eq, Ord, thiserror::Error)]
+pub enum LoginUserVdfError {
+    #[error("missing expected \"users\" subkeys in loginusers.vdf")]
+    ExpectedUsersSubkeys,
+    #[error("missing expected \"AccountName\" key for user in loginusers.vdf")]
+    ExpectedAccountNameKey,
+    #[error("missing expected \"PersonaName\" key for user in loginusers.vdf")]
+    ExpectedPersonaNameKey,
+    #[error("expected \"users\" key (which was found) to have subkeys associated with it in loginusers.vdf")]
+    ExpectedUserEntryToBeSubkeys,
+}
+
 impl<'a> LoginUser<'a> {
-    pub fn from_vdf(document: &'a Document) -> impl Iterator<Item = LoginUser<'a>> + 'a {
-        let users_sub = document.subkeys(ExprId::ROOT, b"users").unwrap();
-        let user_ids = document
-            .0
-            .iter()
-            .filter(move |row| row.parent == users_sub)
-            .map(|user_sub| {
-                if let Value::Subkeys(value) = user_sub.value {
-                    value
-                } else {
-                    panic!()
-                }
-            });
-        user_ids.map(|user_sub| Self {
-            username: document.value_str(user_sub, b"AccountName").unwrap(),
-            nickname: document.value_str(user_sub, b"PersonaName").unwrap(),
-            allow_auto_login: document.value_str(user_sub, b"AllowAutoLogin").unwrap() != b"0",
-        })
+    pub fn from_vdf(
+        document: &'a Document,
+    ) -> Result<
+        impl Iterator<Item = Result<LoginUser<'a>, LoginUserVdfError>> + 'a,
+        LoginUserVdfError,
+    > {
+        let users_sub = document
+            .subkeys(ExprId::ROOT, b"users")
+            .ok_or(LoginUserVdfError::ExpectedUsersSubkeys)?;
+        let user_ids = document.0.iter().filter(move |row| row.parent == users_sub);
+        Ok(user_ids.map(|user_sub| {
+            if let Value::Subkeys(user_keyvals) = user_sub.value {
+                Ok(Self {
+                    username: document
+                        .value_str(user_keyvals, b"AccountName")
+                        .ok_or(LoginUserVdfError::ExpectedAccountNameKey)?,
+                    nickname: document
+                        .value_str(user_keyvals, b"PersonaName")
+                        .ok_or(LoginUserVdfError::ExpectedPersonaNameKey)?,
+                    allow_auto_login: document
+                        .value_str(user_keyvals, b"AllowAutoLogin")
+                        .map_or(false, |value| value != b"0"),
+                })
+            } else {
+                Err(LoginUserVdfError::ExpectedUserEntryToBeSubkeys)
+            }
+        }))
     }
 }

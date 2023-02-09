@@ -38,23 +38,45 @@ fn main() -> ExitCode {
         }
     }
 
+    let mut steam: Option<Result<Steam, ()>> = None;
+    let mut lazy_steam = || match steam {
+        Some(Ok(steam)) => Ok(steam),
+        Some(Err(())) => Err(()),
+        None => match Steam::new() {
+            Ok(s) => {
+                steam = Some(Ok(s));
+                Ok(s)
+            }
+            Err(e) => {
+                steam = Some(Err(()));
+                eprintln!("failed to find Steam: {e}");
+                Err(())
+            }
+        },
+    };
+
     if cli.list {
-        let mut source = String::new();
-        Steam::new()
-            .unwrap()
-            .vdf_loginusers()
-            .unwrap()
-            .read_to_string(&mut source)
-            .unwrap();
-        let document =
-            vdf::parse(vdf::Scanner::new(source.as_bytes()).map(|x| x.unwrap())).unwrap();
-        vdf::LoginUser::from_vdf(&document).for_each(|user| {
-            println!(
-                "{} ({})",
-                user.username.escape_ascii(),
-                user.nickname.escape_ascii()
-            )
-        });
+        if let Ok(steam) = lazy_steam() {
+            let mut source = String::new();
+            steam
+                .vdf_loginusers()
+                .unwrap()
+                .read_to_string(&mut source)
+                .unwrap();
+            let document =
+                vdf::parse(vdf::Scanner::new(source.as_bytes()).map(|x| x.unwrap())).unwrap();
+            vdf::LoginUser::from_vdf(&document)
+                .unwrap()
+                .for_each(|user| {
+                    println!(
+                        "{} ({})",
+                        user.unwrap().username.escape_ascii(),
+                        user.unwrap().nickname.escape_ascii()
+                    )
+                });
+        } else {
+            eprintln!("skipping --list (Steam wasn't found)")
+        };
     }
 
     if let Some(new_username) = cli.set {
@@ -65,47 +87,44 @@ fn main() -> ExitCode {
     }
 
     if cli.restart > 0 {
-        let steam = match Steam::new() {
-            Ok(steam) => steam,
-            Err(e) => {
-                eprintln!("failed to locate Steam for restarting: {e}");
-                return e.into();
-            }
-        };
-        let graceful_shutdown = cli.restart >= 3;
-        let graceful_launch = cli.restart >= 2;
-        let shutdown_result = if graceful_shutdown {
-            let result = steam.shutdown();
-            if result.is_ok() {
-                // wait for Steam processes to close:
-                loop {
-                    match steam.is_running() {
-                        Ok(true) => std::thread::sleep(Duration::from_millis(100)),
-                        Ok(false) => break,
-                        Err(e) => {
-                            eprintln!("failed to check if Steam closed, which is necessary for a graceful shutdown: {e}");
-                            return e.into();
+        if let Ok(steam) = lazy_steam() {
+            let graceful_shutdown = cli.restart >= 3;
+            let graceful_launch = cli.restart >= 2;
+            let shutdown_result = if graceful_shutdown {
+                let result = steam.shutdown();
+                if result.is_ok() {
+                    // wait for Steam processes to close:
+                    loop {
+                        match steam.is_running() {
+                            Ok(true) => std::thread::sleep(Duration::from_millis(100)),
+                            Ok(false) => break,
+                            Err(e) => {
+                                eprintln!("failed to check if Steam closed, which is necessary for a graceful shutdown: {e}");
+                                return e.into();
+                            }
                         }
                     }
                 }
+                result
+            } else {
+                steam.kill().map(|_| ())
+            };
+
+            if let Err(e) = shutdown_result {
+                eprintln!("failed to shut Steam down in order to restart it (will still attempt to launch it): {e}");
             }
-            result
-        } else {
-            steam.kill().map(|_| ())
-        };
 
-        if let Err(e) = shutdown_result {
-            eprintln!("failed to shut Steam down in order to restart it (will still attempt to launch it): {e}");
-        }
-
-        let launch_result = if graceful_launch {
-            steam.launch()
+            let launch_result = if graceful_launch {
+                steam.launch()
+            } else {
+                steam.launch_fast()
+            };
+            if let Err(e) = launch_result {
+                eprintln!("failed to launch Steam to restart it: {e}");
+                return e.into();
+            }
         } else {
-            steam.launch_fast()
-        };
-        if let Err(e) = launch_result {
-            eprintln!("failed to launch Steam to restart it: {e}");
-            return e.into();
+            eprintln!("skipping --restart (Steam wasn't found)")
         }
     }
 
