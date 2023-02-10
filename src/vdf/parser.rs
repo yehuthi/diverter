@@ -52,10 +52,13 @@ impl<'a> Document<'a> {
     }
 }
 
-#[derive(Debug, Hash, Clone, Copy, PartialEq, PartialOrd, Eq, Ord)]
+#[derive(Debug, Hash, Clone, Copy, PartialEq, PartialOrd, Eq, Ord, thiserror::Error)]
 pub enum Error {
+    #[error("unexpected left brace ('{{'), there's no preceding key name to specify subkeys")]
     UnexpectedBraceLeftNoName,
+    #[error("unexpected right brace ('}}'), there's no matching left brace.")]
     UnexpectedBraceRightNoMatch,
+    #[error("expected key value after key name but reached EOF")]
     ExpectedKeyValueAfterKeyName,
 }
 

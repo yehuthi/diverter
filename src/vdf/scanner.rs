@@ -66,9 +66,11 @@ impl<'a> Scanner<'a> {
     }
 }
 
-#[derive(Debug, Hash, Clone, Copy, PartialEq, PartialOrd, Eq, Ord)]
+#[derive(Debug, Hash, Clone, Copy, PartialEq, PartialOrd, Eq, Ord, thiserror::Error)]
 pub enum Error {
+    #[error("unexpected token: '{}' ({0})", char::from(*.0))]
     UnexpectedToken(u8),
+    #[error("unterminated string")]
     UnterminatedString,
 }
 
