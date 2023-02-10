@@ -60,20 +60,22 @@ fn main() -> ExitCode {
             let mut source = String::new();
             match steam.vdf_loginusers() {
                 Ok(mut vdf_file) => match vdf_file.read_to_string(&mut source) {
-                    Ok(_) => {
-                        let document =
-                            vdf::parse(vdf::Scanner::new(source.as_bytes()).map(|x| x.unwrap()))
-                                .unwrap();
-                        vdf::LoginUser::from_vdf(&document)
-                            .unwrap()
-                            .for_each(|user| {
-                                println!(
-                                    "{} ({})",
-                                    user.unwrap().username.escape_ascii(),
-                                    user.unwrap().nickname.escape_ascii()
-                                )
-                            });
-                    }
+                    Ok(_) => match vdf::scan_parse(source.as_bytes()) {
+                        Ok(document) => match vdf::LoginUser::from_vdf(&document) {
+                            Ok(login_users) => {
+                                login_users.for_each(|user| match user {
+                                    Ok(user) => println!(
+                                        "{} ({})",
+                                        user.username.escape_ascii(),
+                                        user.nickname.escape_ascii()
+                                    ),
+                                    Err(e) => eprintln!("failed to read user entry: {e}"),
+                                });
+                            }
+                            Err(e) => eprintln!("failed to read loginusers.vdf (for --list): {e}"),
+                        },
+                        Err(e) => eprintln!("failed to read loginusers.vdf (for --list): {e}"),
+                    },
                     Err(e) => eprintln!("failed to read loginusers.vdf (for --list): {e}"),
                 },
                 Err(e) => eprintln!("failed to open loginusers.vdf (for --list): {e}"),

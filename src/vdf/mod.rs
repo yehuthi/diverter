@@ -6,6 +6,8 @@ pub use scanner::{Error as ScanError, Scanner, Token, TokenType};
 mod parser;
 pub use parser::{parse, Error as ParseError, Id as ExprId, Value};
 
+use crate::util::OkIter;
+
 use self::parser::Document;
 
 #[derive(Clone, Copy)]
@@ -71,5 +73,22 @@ impl<'a> LoginUser<'a> {
                 Err(LoginUserVdfError::ExpectedUserEntryToBeSubkeys)
             }
         }))
+    }
+}
+
+#[derive(Debug, Hash, Clone, Copy, PartialEq, PartialOrd, Eq, Ord, thiserror::Error)]
+pub enum ScanParseError {
+    #[error("lexing error: {0}")]
+    ScanError(#[from] ScanError),
+    #[error("parsing error: {0}")]
+    ParseError(#[from] ParseError),
+}
+
+pub fn scan_parse(source: &[u8]) -> Result<Document, ScanParseError> {
+    let mut tokens = OkIter::new(Scanner::new(source));
+    let result = parse(&mut tokens);
+    match tokens.to_error() {
+        Some(&e) => Err(e.into()),
+        None => result.map_err(ScanParseError::ParseError),
     }
 }
