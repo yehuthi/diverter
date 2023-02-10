@@ -1,24 +1,36 @@
+/// A VDF token type.
 #[derive(Debug, Hash, Clone, Copy, PartialEq, PartialOrd, Eq, Ord)]
 pub enum TokenType {
+    /// Left brace ('{').
     BraceLeft,
+    /// Right brace ('}').
     BraceRight,
+    /// A string.
     String,
 }
 
+/// A VDF token.
 #[derive(Debug, Hash, Clone, Copy, PartialEq, PartialOrd, Eq, Ord)]
 pub struct Token<'a> {
+    /// The token [type](TokenType).
     pub r#type: TokenType,
+    /// The slice of the token.
     pub lexeme: &'a [u8],
 }
 
+/// The scanner / lexer data.
 #[derive(Debug, Hash, Default, Clone, Copy, PartialEq, PartialOrd, Eq, Ord)]
 pub struct Scanner<'a> {
+    /// The source that is being scanned.
     pub source: &'a [u8],
+    /// The start of the current lexeme.
     pub start: usize,
+    /// The current position of the scanner.
     pub current: usize,
 }
 
 impl<'a> Scanner<'a> {
+    /// Creates a new [`Scanner`].
     #[inline]
     pub const fn new(source: &'a [u8]) -> Self {
         Self {
@@ -28,6 +40,7 @@ impl<'a> Scanner<'a> {
         }
     }
 
+    /// Checks if the scanner exhausted its [source](Scanner::source).
     #[inline]
     pub const fn is_finished(self) -> bool {
         self.current >= self.source.len()
@@ -66,10 +79,13 @@ impl<'a> Scanner<'a> {
     }
 }
 
+/// A [lexing](Scanner) error.
 #[derive(Debug, Hash, Clone, Copy, PartialEq, PartialOrd, Eq, Ord, thiserror::Error)]
 pub enum Error {
+    /// Unexpected token.
     #[error("unexpected token: '{}' ({0})", char::from(*.0))]
     UnexpectedToken(u8),
+    /// Unterminated string literal.
     #[error("unterminated string")]
     UnterminatedString,
 }

@@ -230,6 +230,7 @@ impl Steam {
         )
     }
 
+    /// Gets a [file handle](File) to the `loginusers.vdf` file.
     #[inline]
     pub fn vdf_loginusers(&self) -> Result<File> {
         let mut handle: RawHandle = std::ptr::null_mut();
