@@ -58,25 +58,27 @@ fn main() -> ExitCode {
     if cli.list {
         if let Ok(steam) = lazy_steam() {
             let mut source = String::new();
-            steam
-                .vdf_loginusers()
-                .unwrap()
-                .read_to_string(&mut source)
-                .unwrap();
-            let document =
-                vdf::parse(vdf::Scanner::new(source.as_bytes()).map(|x| x.unwrap())).unwrap();
-            vdf::LoginUser::from_vdf(&document)
-                .unwrap()
-                .for_each(|user| {
-                    println!(
-                        "{} ({})",
-                        user.unwrap().username.escape_ascii(),
-                        user.unwrap().nickname.escape_ascii()
-                    )
-                });
-        } else {
-            eprintln!("skipping --list (Steam wasn't found)")
-        };
+            match steam.vdf_loginusers() {
+                Ok(mut vdf_file) => match vdf_file.read_to_string(&mut source) {
+                    Ok(_) => {
+                        let document =
+                            vdf::parse(vdf::Scanner::new(source.as_bytes()).map(|x| x.unwrap()))
+                                .unwrap();
+                        vdf::LoginUser::from_vdf(&document)
+                            .unwrap()
+                            .for_each(|user| {
+                                println!(
+                                    "{} ({})",
+                                    user.unwrap().username.escape_ascii(),
+                                    user.unwrap().nickname.escape_ascii()
+                                )
+                            });
+                    }
+                    Err(e) => eprintln!("failed to read loginusers.vdf (for --list): {e}"),
+                },
+                Err(e) => eprintln!("failed to open loginusers.vdf (for --list): {e}"),
+            }
+        }
     }
 
     if let Some(new_username) = cli.set {
