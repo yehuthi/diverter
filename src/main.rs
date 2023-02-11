@@ -64,6 +64,12 @@ fn main() -> ExitCode {
     if cli.list {
         if let Ok(steam) = lazy_steam() {
             let mut source = String::new();
+            if !cli.get {
+                // then we didn't report a potential error for existing_username
+                if let Err(e) = &existing_username.as_ref().unwrap() {
+                    eprintln!("failed to get the current username: {e}")
+                }
+            }
             match steam.vdf_loginusers() {
                 Ok(mut vdf_file) => match vdf_file.read_to_string(&mut source) {
                     Ok(_) => match vdf::scan_parse(source.as_bytes()) {
