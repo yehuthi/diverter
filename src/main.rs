@@ -21,6 +21,9 @@ pub struct Cli {
     /// If supplied twice, allows Steam to check file integrity on startup.
     /// If supplied three times, also shuts down Steam gracefully.
     restart: u8,
+    /// Print with color. Leave unspecified for auto.
+    #[arg(short, long)]
+    color: Option<bool>,
 }
 
 fn main() -> ExitCode {
@@ -62,6 +65,7 @@ fn main() -> ExitCode {
     };
 
     if cli.list {
+        let color = cli.color.unwrap_or_else(|| atty::is(atty::Stream::Stdout));
         if let Ok(steam) = lazy_steam() {
             let mut source = String::new();
             if !cli.get {
@@ -85,10 +89,13 @@ fn main() -> ExitCode {
                                             false
                                         };
                                         println!(
-                                            "{} {} ({})",
+                                            "{ansi_start}{} {} ({}){ansi_end}",
                                             if selected { "*" } else { "-" },
                                             user.username.escape_ascii(),
-                                            user.nickname.escape_ascii()
+                                            user.nickname.escape_ascii(),
+                                            ansi_start =
+                                                if color && selected { "\u{1B}[32m" } else { "" },
+                                            ansi_end = if color { "\u{1B}[0m" } else { "" },
                                         )
                                     }
                                     Err(e) => eprintln!("failed to read user entry: {e}"),
