@@ -103,6 +103,13 @@ impl Username {
     }
 }
 
+impl PartialEq<[u8]> for Username {
+    #[inline(always)]
+    fn eq(&self, other: &[u8]) -> bool {
+        self.as_bytes() == other
+    }
+}
+
 impl<'a> TryFrom<&'a str> for Username {
     type Error = UsernameError;
 

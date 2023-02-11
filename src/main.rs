@@ -26,8 +26,14 @@ pub struct Cli {
 fn main() -> ExitCode {
     let cli = Cli::parse();
 
+    let existing_username = if cli.get || cli.list {
+        Some(Steam::get_auto_login_user())
+    } else {
+        None
+    };
+
     if cli.get {
-        match Steam::get_auto_login_user() {
+        match existing_username.as_ref().unwrap() {
             Ok(username) => println!("{username}"),
             Err(e) => {
                 eprintln!("failed to get the current username: {e}");
@@ -64,11 +70,21 @@ fn main() -> ExitCode {
                         Ok(document) => match vdf::LoginUser::from_vdf(&document) {
                             Ok(login_users) => {
                                 login_users.for_each(|user| match user {
-                                    Ok(user) => println!(
-                                        "{} ({})",
-                                        user.username.escape_ascii(),
-                                        user.nickname.escape_ascii()
-                                    ),
+                                    Ok(user) => {
+                                        let selected = if let Ok(existing_username) =
+                                            existing_username.as_ref().unwrap()
+                                        {
+                                            existing_username == user.username
+                                        } else {
+                                            false
+                                        };
+                                        println!(
+                                            "{} {} ({})",
+                                            if selected { "*" } else { "-" },
+                                            user.username.escape_ascii(),
+                                            user.nickname.escape_ascii()
+                                        )
+                                    }
                                     Err(e) => eprintln!("failed to read user entry: {e}"),
                                 });
                             }
@@ -86,7 +102,7 @@ fn main() -> ExitCode {
     if let Some(new_username) = cli.set {
         if let Err(e) = Steam::set_auto_login_user(new_username) {
             eprintln!("failed to set the new username: {e}");
-            return e.into();
+            return ExitCode::from(&e);
         }
     }
 
@@ -104,7 +120,7 @@ fn main() -> ExitCode {
                             Ok(false) => break,
                             Err(e) => {
                                 eprintln!("failed to check if Steam closed, which is necessary for a graceful shutdown: {e}");
-                                return e.into();
+                                return ExitCode::from(&e);
                             }
                         }
                     }
@@ -125,7 +141,7 @@ fn main() -> ExitCode {
             };
             if let Err(e) = launch_result {
                 eprintln!("failed to launch Steam to restart it: {e}");
-                return e.into();
+                return ExitCode::from(&e);
             }
         } else {
             eprintln!("skipping --restart (Steam wasn't found)")

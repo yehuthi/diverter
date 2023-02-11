@@ -89,8 +89,8 @@ pub enum Error {
 }
 
 /// Exit codes per `sysexits.h`.
-impl From<Error> for ExitCode {
-    fn from(e: Error) -> Self {
+impl<'a> From<&'a Error> for ExitCode {
+    fn from(e: &'a Error) -> Self {
         ExitCode::from(match e {
             Error::InvalidUsernameInRegistry(_) => 78,
             _ => 69,
