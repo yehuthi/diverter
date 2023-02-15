@@ -8,6 +8,7 @@ use std::{
     mem::MaybeUninit,
     os::windows::prelude::{FromRawHandle, OsStringExt, RawHandle},
     process::ExitCode,
+    time::Duration,
 };
 
 use winapi::{
@@ -167,10 +168,20 @@ impl Steam {
         err_opt(unsafe { steam_init(&mut steam) }.into(), steam)
     }
 
-    /// Gracefully shuts down Steam, if running.
+    /// Gracefully and asynchronously shuts down Steam, if running.
     #[inline]
-    pub fn shutdown(&self) -> Result<()> {
+    pub fn start_shutdown(&self) -> Result<()> {
         err_opt(unsafe { steam_shutdown(self) }.into(), ())
+    }
+
+    /// Gracefully shuts down Steam, if running, and polls until all Steam processes are shut down.
+    #[inline]
+    pub fn shutdown_poll(&self, poll: Duration) -> Result<()> {
+        self.start_shutdown()?;
+        while self.is_running()? {
+            std::thread::sleep(poll)
+        }
+        Ok(())
     }
 
     /// Launches Steam.
