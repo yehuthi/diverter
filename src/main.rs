@@ -63,18 +63,20 @@ fn main() -> ExitCode {
             if restart || graceful || verify {
                 match Steam::new() {
                     Ok(steam) => {
-                        let (kill_method, kill_method_verb, kill_result) = if graceful {
+                        let (kill_method, kill_method_verb, kill_symbol, kill_result) = if graceful
+                        {
                             (
                                 "shut down",
                                 "shut down",
+                                "🛑",
                                 steam.shutdown_poll(Duration::from_millis(100)),
                             )
                         } else {
-                            ("killed", "kill", steam.kill().map(|_| ()))
+                            ("killed", "kill", "🔪", steam.kill().map(|_| ()))
                         };
 
                         match kill_result {
-                                Ok(()) => eprintln!("Steam has been {kill_method}"),
+                                Ok(()) => eprintln!("{kill_symbol} Steam has been {kill_method}"),
                                 Err(e) => eprintln!("Failed to {kill_method_verb} Steam to restart it ({e}). Will still try to launch it..")
                             }
 
@@ -84,7 +86,7 @@ fn main() -> ExitCode {
                             steam.launch_fast()
                         };
                         match launch_result {
-                            Ok(()) => eprintln!("Launched Steam"),
+                            Ok(()) => eprintln!("🚀 launched Steam"),
                             Err(e) => {
                                 eprintln!("Failed to re-launch Steam: {e}");
                             }
@@ -119,7 +121,7 @@ fn main() -> ExitCode {
                                         let selected = Some(user.username) == existing_username;
                                         println!(
                                             "{ansi_start}{} {} ({}){ansi_end}",
-                                            if selected { "*" } else { "-" },
+                                            if selected { "◼" } else { "◻" },
                                             user.username.escape_ascii(),
                                             user.nickname.escape_ascii(),
                                             ansi_start = if should_color && selected {
