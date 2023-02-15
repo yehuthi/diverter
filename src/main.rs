@@ -132,7 +132,7 @@ fn main() -> ExitCode {
                                             ansi_end = if should_color { "\u{1B}[0m" } else { "" },
                                         )
                                     }
-                                    Err(e) => eprintln!("failed to read user entry: {e}"),
+                                    Err(e) => eprintln!("Failed to read user entry: {e}"),
                                 });
                             }
                             Err(e) => {
