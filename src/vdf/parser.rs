@@ -1,4 +1,5 @@
 use super::Token;
+use core::fmt::{self, Debug, Formatter};
 
 /// A [`Document`] element ID.
 #[derive(Debug, Hash, Default, Clone, Copy, PartialEq, PartialOrd, Eq, Ord)]
@@ -11,12 +12,24 @@ impl Id {
 }
 
 /// A key value.
-#[derive(Debug, Hash, Clone, Copy, PartialEq, PartialOrd, Eq, Ord)]
+#[derive(Hash, Clone, Copy, PartialEq, PartialOrd, Eq, Ord)]
 pub enum Value<'a> {
     /// A string value.
     String(&'a [u8]),
     /// Subkeys value.
     Subkeys(Id),
+}
+
+impl<'a> Debug for Value<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match *self {
+            Self::String(str) => f
+                .debug_tuple("String")
+                .field(&format_args!("{}", str.escape_ascii()))
+                .finish(),
+            Self::Subkeys(id) => f.debug_tuple("Subkeys").field(&id).finish(),
+        }
+    }
 }
 
 /// A key-value pair.
@@ -31,9 +44,22 @@ pub struct KeyValue<'a> {
 }
 
 /// A VDF document.
-#[derive(Debug, Hash, Default, Clone, PartialEq, PartialOrd, Eq, Ord)]
+#[derive(Hash, Default, Clone, PartialEq, PartialOrd, Eq, Ord)]
 #[repr(transparent)]
 pub struct Document<'a>(pub Vec<KeyValue<'a>>);
+
+impl<'a> Debug for Document<'a> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        let mut doc = f.debug_map();
+        for kv in &self.0 {
+            doc.entry(
+                &format_args!("{:?}/{}", kv.parent, kv.key.escape_ascii()),
+                &kv.value,
+            );
+        }
+        doc.finish()
+    }
+}
 
 impl<'a> Document<'a> {
     /// Gets the subkeys at the given path.
