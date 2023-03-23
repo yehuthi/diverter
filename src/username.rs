@@ -50,10 +50,10 @@ mod core {
 
         #[inline]
         fn try_from(username: &'a [u8]) -> Result<Self, Self::Error> {
-            if username.len() >= Username::MAX_LEN {
+            if username.len() > Username::MAX_LEN {
                 Err(UsernameError::TooLong)?;
             }
-            if username.len() <= Username::MIN_LEN {
+            if username.len() < Username::MIN_LEN {
                 Err(UsernameError::TooShort)?;
             }
             let mut data = [MaybeUninit::uninit(); Username::MAX_LEN + 1];
