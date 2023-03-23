@@ -8,6 +8,7 @@ license = "MIT OR Apache-2.0"
 keywords = ["steam", "account", "manager", "switcher", "gaming"]
 categories = ["command-line-utilities"]
 edition = "2021"
+exclude = ["doc/*"]
 
 [dependencies]
 atty = "0.2.14"
